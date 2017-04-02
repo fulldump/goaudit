@@ -8,15 +8,6 @@ import (
 	"github.com/fulldump/golax"
 )
 
-func getAudit(c *golax.Context) *Audit {
-	v, exists := c.Get(CONTEXT_KEY)
-
-	if !exists {
-		return nil
-	}
-	return v.(*Audit)
-}
-
 // TestAudit is a util for testing Audits. It can store Audits to memory and read
 // them at testing time.
 type TestAudit struct {
