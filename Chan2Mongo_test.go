@@ -16,7 +16,7 @@ import (
 
 func Test_Chan2Mongo(t *testing.T) {
 
-	dbName := "goaudit-" + uuid.NewV4().String()
+	dbName := "goaudit-" + uuid.Must(uuid.NewV4()).String()
 
 	session, _ := mgo.Dial("localhost")
 	session.SetMode(mgo.Monotonic, true)

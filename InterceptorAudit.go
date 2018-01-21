@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fulldump/golax"
+	"gopkg.in/mgo.v2/bson"
 )
 
 // InterceptorAudit attach a new Audit to the context and populate it automatically.
@@ -85,6 +86,7 @@ func InterceptorAudit(service *Service) *golax.Interceptor {
 		Before: func(c *golax.Context) {
 
 			audit := &Audit{
+				Id:             bson.NewObjectId().Hex(),
 				Version:        VERSION,
 				Service:        service,
 				Origin:         formatRemoteAddr(c.Request),
@@ -92,6 +94,7 @@ func InterceptorAudit(service *Service) *golax.Interceptor {
 				EntryTimestamp: float64(time.Now().UnixNano()) / 1000000000,
 				ElapsedSeconds: 0,
 				Request: Request{
+					Header:     c.Request.Header,
 					Length:     c.Request.ContentLength,
 					Method:     c.Request.Method,
 					URI:        c.Request.RequestURI,
@@ -100,7 +103,12 @@ func InterceptorAudit(service *Service) *golax.Interceptor {
 				},
 				ReadAccess: []string{},
 				Custom:     map[string]interface{}{},
+				Log: Log{
+					Entries: []*LogEntry{},
+				},
 			}
+
+			c.Response.Header().Set("X-Audit-Id", audit.Id)
 
 			c.Set(CONTEXT_KEY, audit)
 
@@ -113,7 +121,7 @@ func InterceptorAudit(service *Service) *golax.Interceptor {
 			audit.ElapsedSeconds = exitTimestamp - audit.EntryTimestamp
 
 			audit.Request.Handler = c.PathHandlers
-
+			audit.Response.Header = c.Response.Header()
 			audit.Response.StatusCode = c.Response.StatusCode
 			audit.Response.Length = int64(c.Response.Length)
 

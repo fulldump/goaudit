@@ -42,6 +42,9 @@ func Chan2Mongo(s chan *Audit, m *mgo.Database) {
 			c := m.C(name)
 
 			for e := c.Insert(audit); nil != e; e = c.Insert(audit) {
+				if mgo.IsDup(e) {
+					break
+				}
 				// TODO: alarm warning?
 				time.Sleep(1 * time.Second)
 			}
