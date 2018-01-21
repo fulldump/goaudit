@@ -1,9 +1,14 @@
 package goaudit
 
-import "time"
+import (
+	"fmt"
+	"net/http"
+	"runtime"
+	"time"
+)
 
 // Audit represents Audit Record information. The purpose of this kind
-// of records is access audits and billing.
+// of records is auditing and billing.
 type Audit struct {
 
 	// Id is a random string to identify a specific Audit.
@@ -45,9 +50,17 @@ type Audit struct {
 	// Array with all authIds allowed to read this Audit.
 	ReadAccess []string `json:"read_access" bson:"read_access"`
 
+	Log Log `json:"log" bson:",inline"`
+
 	// Custom stores specific service information that is service-dependent in
 	// any format.
 	Custom interface{} `json:"custom" bson:"custom"`
+
+	aborted bool `json:"-" bson:"-"`
+}
+
+func (audit *Audit) Abort() {
+	audit.aborted = true
 }
 
 // SetError overwrite error code and description in an Audit
@@ -88,6 +101,9 @@ type Error struct {
 // Request represents an Audit Request.
 type Request struct {
 
+	// Header is all request headers
+	Header http.Header `json:"header" bson:"header"`
+
 	// Method is the HTTP verb
 	Method string `json:"method" bson:"method"`
 
@@ -109,6 +125,9 @@ type Request struct {
 
 // Response represents an Audit response.
 type Response struct {
+
+	// Header is all request headers
+	Header http.Header `json:"header" bson:"header"`
 
 	// StatusCode is the returned status code number.
 	StatusCode int `json:"status_code" bson:"status_code"`
@@ -132,4 +151,82 @@ type Service struct {
 	// Commit is the short commit number to identify exactly the code base
 	// that is being executed
 	Commit string `json:"commit" bson:"commit"`
+}
+
+// LogEntry entry equivalent to a log line in stdout
+type LogEntry struct {
+	Level     string `json:"level" bson:"level"`
+	Timestamp int64  `json:"timestamp" bson:"timestamp"`
+	Text      string `json:"text" bson:"text"`
+	CodeLine  string `json:"code_line" bson:"code_line"`
+}
+
+// Log entries for a current request
+type Log struct {
+	Entries []*LogEntry `json:"entries" bson:"log"`
+}
+
+func (l *Log) Debug(text ...interface{}) {
+	l.log("DEBUG", fmt.Sprint(text...))
+}
+
+func (l *Log) Info(text ...interface{}) {
+	l.log("INFO", fmt.Sprint(text...))
+}
+
+func (l *Log) Warning(text ...interface{}) {
+	l.log("WARNING", fmt.Sprint(text...))
+}
+
+func (l *Log) Error(text ...interface{}) {
+	l.log("ERROR", fmt.Sprint(text...))
+}
+
+func (l *Log) Fatal(text ...interface{}) {
+	l.log("FATAL", fmt.Sprint(text...))
+}
+
+func (l *Log) Debugf(format string, text ...interface{}) {
+	l.log("DEBUG", fmt.Sprintf(format, text...))
+}
+
+func (l *Log) Infof(format string, text ...interface{}) {
+	l.log("INFO", fmt.Sprintf(format, text...))
+}
+
+func (l *Log) Warningf(format string, text ...interface{}) {
+	l.log("WARNING", fmt.Sprintf(format, text...))
+}
+
+func (l *Log) Errorf(format string, text ...interface{}) {
+	l.log("ERROR", fmt.Sprintf(format, text...))
+}
+
+func (l *Log) Fatalf(format string, text ...interface{}) {
+	l.log("FATAL", fmt.Sprintf(format, text...))
+}
+
+func (l *Log) log(level, text string) {
+
+	now := time.Now()
+	filename := "-"
+
+	if _, file, line, ok := runtime.Caller(2); ok {
+		filename = fmt.Sprintf("%s:%d", file, line)
+	}
+
+	fmt.Printf(
+		"%s\t%s\t%s\t(%s)\n",
+		time.Now().UTC().Format(time.RFC3339Nano),
+		"LOG."+level,
+		text, // TODO: escape line breaks
+		filename,
+	)
+
+	l.Entries = append(l.Entries, &LogEntry{
+		Level:     level,
+		Timestamp: now.UnixNano(),
+		Text:      text,
+		CodeLine:  filename,
+	})
 }
