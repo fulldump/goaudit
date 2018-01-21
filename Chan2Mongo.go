@@ -3,8 +3,6 @@ package goaudit
 import (
 	"time"
 
-	"fmt"
-
 	mgo "gopkg.in/mgo.v2"
 )
 
