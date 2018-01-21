@@ -36,6 +36,9 @@ func InterceptorAudit2Channel(s chan *Audit) *golax.Interceptor {
 		},
 		After: func(c *golax.Context) {
 			audit := GetAudit(c)
+			if audit.aborted {
+				return
+			}
 			s <- audit
 		},
 	}
